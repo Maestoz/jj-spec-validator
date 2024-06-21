@@ -1,0 +1,7 @@
+httpx>=0.24.0,<1.0
+schemax-openapi>=0.0.1,<1.0
+flake8>=6.0,<7.0
+isort>=5.12,<6.0
+mypy>=1.2,<2.0
+autoflake>=2.3.0,<3.0
+types-PyYAML>=6.0,<7.0
