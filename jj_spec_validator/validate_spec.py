@@ -5,7 +5,7 @@ from typing import Callable, Dict, Optional, Tuple, TypeVar
 from schemax_openapi import SchemaData
 
 from utils._common import _normalize_path
-from utils._cacheir import _load_cache
+from jj_spec_validator.utils._cacheir import _load_cache
 
 _T = TypeVar('_T')
 

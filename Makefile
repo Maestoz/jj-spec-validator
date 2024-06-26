@@ -1,17 +1,5 @@
 PROJECT_NAME=jj_spec_validator
 
-.PHONY: update-requirements
-update-requirements:
-	@pip-compile --upgrade -o requirements.txt requirements.in
-
-.PHONY: sync-requirements
-sync-requirements:
-	@pip-sync requirements.txt
-
-.PHONY: check-requirements
-check-requirements:
-	@pip-sync requirements.txt --dry-run
-
 .PHONY: check-types
 check-types:
 	python3 -m mypy ${PROJECT_NAME} --strict
