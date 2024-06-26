@@ -1,4 +1,4 @@
-from setuptools import find_packages, setup
+from setuptools import setup
 
 
 def find_required():
@@ -14,15 +14,13 @@ setup(
     long_description_content_type="text/markdown",
     author="Sam Roz",
     author_email="rolez777@gmail.com",
-    python_requires=">=3.8",
+    python_requires=">=3.10",
     url="https://github.com/Maestoz/jj-spec-validator",
     license="Apache-2.0",
     packages=['jj_spec_validator'],
     install_requires=find_required(),
     classifiers=[
         "License :: OSI Approved :: Apache Software License",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
     ]
