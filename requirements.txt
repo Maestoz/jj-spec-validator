@@ -1,0 +1,2 @@
+httpx>=0.24.0,<1.0
+schemax-openapi>=0.0.1,<1.0
