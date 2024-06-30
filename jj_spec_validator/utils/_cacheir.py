@@ -7,7 +7,10 @@ from httpx import Response, get
 from schemax_openapi import SchemaData, collect_schema_data
 from yaml import FullLoader, load
 
-from _common import _normalize_path
+from ._common import normalize_path
+
+__all__ = ('load_cache', )
+
 
 CACHE_DIR = 'cache_parsed_specs'
 CACHE_TTL = 3600  # in second
@@ -16,7 +19,7 @@ CACHE_TTL = 3600  # in second
 def _build_entity_dict(entities: List[SchemaData]) -> Dict[Tuple[str, str], SchemaData]:
     entity_dict = {}
     for entity in entities:
-        normalized_path = _normalize_path(entity.path)
+        normalized_path = normalize_path(entity.path)
         entity_key = (entity.http_method.lower(), normalized_path)
         entity_dict[entity_key] = entity
     return entity_dict
@@ -59,7 +62,7 @@ def _save_cache(spec_link: str) -> str:
     return data
 
 
-def _load_cache(spec_link: str) -> Dict[Tuple[str, str], SchemaData]:
+def load_cache(spec_link: str) -> Dict[Tuple[str, str], SchemaData]:
     filename = _get_cache_filename(spec_link)
 
     if _validate_cache_file(filename):
