@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 def find_required():
@@ -8,7 +8,7 @@ def find_required():
 
 setup(
     name="jj-spec-validator",
-    version="0.0.3",
+    version="0.0.4",
     description="jj mocks validator for openapi specs",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -17,7 +17,7 @@ setup(
     python_requires=">=3.10",
     url="https://github.com/Maestoz/jj-spec-validator",
     license="Apache-2.0",
-    packages=['jj_spec_validator'],
+    packages=find_packages(),
     install_requires=find_required(),
     classifiers=[
         "License :: OSI Approved :: Apache Software License",
