@@ -1,7 +1,5 @@
 ## Usage
 
-## Usage
-
 1. Decorate your [mocked](https://pypi.org/project/jj/) function with `@validate_spec()`, passing a link to a YAML OpenAPI spec.
 ```python
 import jj
