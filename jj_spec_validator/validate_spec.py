@@ -59,9 +59,15 @@ class Validator:
 def _prepare_data(spec_link: str) -> Dict[Tuple[str, str], SchemaData]:
     return load_cache(spec_link)
 
-def validate_spec(*, spec_link: str, is_strict: bool = False, validate_level: Literal["error", "warning"] = "error") -> Callable[[Callable[..., _T]], Callable[..., _T]]:
+
+def validate_spec(*,
+                  spec_link: str,
+                  is_strict: bool = False,
+                  validate_level: Literal["error", "warning"] = "error") -> (
+        Callable)[[Callable[..., _T]], Callable[..., _T]]:
     def decorator(func: Callable[..., _T]) -> Callable[..., _T]:
         func_name = func.__name__
+
         @wraps(func)
         def wrapper(*args: object, **kwargs: object) -> _T:
 
