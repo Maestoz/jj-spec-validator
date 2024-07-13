@@ -1,9 +1,11 @@
 from hashlib import md5
 from os import makedirs, path, remove
+from pickle import dump
+from pickle import load as pickle_load
 from time import time
 from typing import Dict, List, Tuple
 
-from httpx import Response, get
+from httpx import Response, get, ConnectTimeout
 from schemax_openapi import SchemaData, collect_schema_data
 from yaml import FullLoader, load
 
@@ -44,34 +46,32 @@ def _get_cache_filename(url: str) -> str:
 
 
 def _download_spec(spec_link: str) -> Response:
-    response = get(spec_link)
+    try:
+        response = get(spec_link)
+    except ConnectTimeout:
+        raise ConnectTimeout("Timeout occurred while trying to connect to the specified link.")
     response.raise_for_status()
     return response
 
 
-def _save_cache(spec_link: str) -> str:
+def _save_cache(spec_link: str, raw_schema) -> None:
     filename = _get_cache_filename(spec_link)
-
-    raw_spec = _download_spec(spec_link)
-
-    data = raw_spec.text
-
     makedirs(CACHE_DIR, exist_ok=True)
-    with open(filename, 'w') as f:
-        f.write(data)
-    return data
+    with open(filename, 'wb') as f:
+        dump(raw_schema, f)
 
 
 def load_cache(spec_link: str) -> Dict[Tuple[str, str], SchemaData]:
     filename = _get_cache_filename(spec_link)
 
     if _validate_cache_file(filename):
-        with open(filename, 'r') as f:
-            data = f.read()
+        with open(filename, 'rb') as f:
+            raw_schema = pickle_load(f)
     else:
-        data = _save_cache(spec_link)
-
-    raw_schema = load(data, FullLoader)
+        raw_spec = _download_spec(spec_link)
+        data = raw_spec.text
+        raw_schema = load(data, FullLoader)
+        _save_cache(spec_link, raw_schema)
 
     parsed_data = collect_schema_data(raw_schema)
     prepared_dict = _build_entity_dict(parsed_data)
