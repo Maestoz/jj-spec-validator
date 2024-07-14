@@ -8,7 +8,7 @@ def find_required():
 
 setup(
     name="jj-spec-validator",
-    version="0.1.0",
+    version="0.1.1",
     description="jj mocks validator for openapi specs",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
