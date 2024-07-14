@@ -1,6 +1,7 @@
 from functools import wraps
 from json import loads, JSONDecodeError
 from typing import Callable, Dict, Literal, Optional, Tuple, TypeVar, Any
+import asyncio
 
 from d42 import validate_or_fail
 from schemax_openapi import SchemaData
@@ -93,7 +94,7 @@ def validate_spec(*,
 
        Args:
            spec_link (str | None): The link to the specification. `None` for disable validation.
-           is_strict (bool): WIP. False is awailable now (hardcoded).
+           is_strict (bool): WIP, only "False" is working now.
            validate_level (Literal["error", "warning", "skip"]): The validation level. Can be 'error', 'warning', or 'skip'. Default is 'error'.
            prefix (str | None): Prefix is used to cut paths prefix in mock function.
        """
@@ -101,18 +102,33 @@ def validate_spec(*,
         func_name = func.__name__
 
         @wraps(func)
-        def wrapper(*args: object, **kwargs: object) -> _T:
+        async def async_wrapper(*args: object, **kwargs: object) -> _T:
+            if spec_link:
+                mocked = await func(*args, **kwargs)
+                if isinstance(mocked.handler.response, RelayResponse):
+                    print("RelayResponse type is not supported")
+                    return mocked
+                prepared_dict_from_spec = _prepare_data(spec_link)
+                Validator.validate(mocked, prepared_dict_from_spec, is_strict, validate_level, func_name, prefix)
+            else:
+                mocked = await func(*args, **kwargs)
+            return mocked
 
+        @wraps(func)
+        def sync_wrapper(*args: object, **kwargs: object) -> _T:
             if spec_link:
                 mocked = func(*args, **kwargs)
                 if isinstance(mocked.handler.response, RelayResponse):
-                    print("Not supported")
+                    print("RelayResponse type is not supported")
                     return mocked
                 prepared_dict_from_spec = _prepare_data(spec_link)
                 Validator.validate(mocked, prepared_dict_from_spec, is_strict, validate_level, func_name, prefix)
             else:
                 mocked = func(*args, **kwargs)
-
             return mocked
-        return wrapper
+
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        else:
+            return sync_wrapper
     return decorator
