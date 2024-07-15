@@ -1,6 +1,6 @@
 ## Usage
 
-1. Decorate your [mocked](https://pypi.org/project/jj/) function with `@validate_spec()`, passing a link to a YAML OpenAPI spec.
+1. Decorate your [mocked](https://pypi.org/project/jj/) function with `@validate_spec()`, providing a link to a YAML or JSON OpenAPI spec.
 ```python
 import jj
 from jj.mock import mocked
@@ -13,7 +13,10 @@ async def your_mocked_function():
     
     mock = await mocked(matcher, response)
 ```
-2. Control discrepancy handling with `validate_level` key: `"error"` (default, raises error) or `"warning"` (prints warning, continues execution).
+2. Control discrepancy handling with `validate_level` key: 
+   - `"error"` (default, raises error)
+   - `"warning"` (prints warning, continues execution)
+   - `"skip"` (skips validation)
 ```python
 @validate_spec(spec_link="http://example.com/spec.yml", validate_level="warning")
 ```

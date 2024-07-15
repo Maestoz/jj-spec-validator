@@ -1,16 +1,90 @@
 from functools import wraps
 from json import loads, JSONDecodeError
-from typing import Callable, Dict, Literal, Optional, Tuple, TypeVar, Any
+from typing import Callable, Dict, Union, List, Literal, Optional, Tuple, TypeVar, Any
 import asyncio
 
 from d42 import validate_or_fail
 from schemax_openapi import SchemaData
 from jj import RelayResponse
+from jj.matchers import ResolvableMatcher
 from .utils import load_cache, normalize_path
 from revolt.errors import SubstitutionError
+from aiohttp.web_urldispatcher import DynamicResource
+
 from valera import ValidationException
 
 _T = TypeVar('_T')
+
+
+class BaseMatcher:
+    async def match(self, method: str, path: str) -> bool:
+        raise NotImplementedError()
+
+
+class EqualMatcher:
+    def __init__(self, expected: Any) -> None:
+        self._expected = expected
+
+    async def match(self, actual: Any) -> bool:
+        return bool(self._expected == actual)
+
+
+class _Resource(DynamicResource):
+    def match(self, path: str) -> Union[Dict[str, str], None]:
+        return self._match(path)
+
+
+class MethodMatcher(BaseMatcher):
+    def __init__(self, method: Any) -> None:
+        self._matcher = EqualMatcher(str.upper(method))
+
+    async def match(self, method: str, path: str) -> bool:
+        return await self._matcher.match("*") or await self._matcher.match(method)
+
+
+class RouteMatcher:
+    def __init__(self, path: str) -> None:
+        self._path = path
+        self._resource = _Resource(path)
+
+    async def match(self, path: str) -> bool:
+        return self._resource.match(path) is not None
+
+    def get_segments(self, path: str) -> Dict[str, str]:
+        return self._resource.match(path) or {}
+
+
+class PathMatcher(BaseMatcher):
+    def __init__(self, path: str) -> None:
+        self._matcher = RouteMatcher(path)
+
+    async def match(self, method: str, path: str) -> bool:
+        matched = await self._matcher.match(path)
+        return matched
+
+
+class AnyMatcher(BaseMatcher):
+    def __init__(self, matchers: List[BaseMatcher]) -> None:
+        assert len(matchers) > 0
+        self._matchers = matchers
+
+    async def match(self, method: str, path: str) -> bool:
+        for matcher in self._matchers:
+            if await matcher.match(method, path):
+                return True
+        return False
+
+
+class AllMatcher(BaseMatcher):
+    def __init__(self, matchers: List[BaseMatcher]) -> None:
+        assert len(matchers) > 0
+        self._matchers = matchers
+
+    async def match(self, method: str, path: str) -> bool:
+        for matcher in self._matchers:
+            if not await matcher.match(method, path):
+                return False
+        return True
 
 
 class Validator:
@@ -39,12 +113,30 @@ class Validator:
                 pass
 
     @staticmethod
+    def create_openapi_matcher(matcher: ResolvableMatcher) -> BaseMatcher:
+        pass
+
+    @staticmethod
+    def get_matched_schemas(openapi_spec: Dict[str, Any], matcher: BaseMatcher) -> List[SchemaData]:
+        ...
+        # for (method, path), schema in openapi_spec:
+        #     if match(mathod, path):
+        #         return schema
+
+    @staticmethod
     def validate(mocked: _T,
                  prepared_dict_from_spec: Dict[Tuple[str, str], SchemaData],
                  is_strict: bool,
                  validate_level: Literal["error", "warning", "skip"],
                  func_name: str,
                  prefix: str | None) -> None:
+        mock_matcher = mocked.handler.matcher
+        spec_matcher = Validator.create_openapi_matcher(matcher=mock_matcher)
+
+        # spec_matcher.match(spec.method, spec.path)  # bool
+
+        # schemas = get_matched_schemas(openapi_spec, spec_matcher)  # чаще всего, тут одна схема
+        # response.body == schema.any(*scheams)
 
         matcher = mocked.handler.matcher.sub_matchers  # type: ignore
         method = matcher[0].sub_matcher.expected
