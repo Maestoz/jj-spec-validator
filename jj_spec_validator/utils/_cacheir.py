@@ -5,11 +5,9 @@ from pickle import load as pickle_load
 from time import time
 from typing import Dict, List, Tuple
 
-from httpx import Response, get, ConnectTimeout
+from httpx import ConnectTimeout, Response, get
 from schemax_openapi import SchemaData, collect_schema_data
 from yaml import FullLoader, load
-
-from ._common import normalize_path
 
 __all__ = ('load_cache', )
 
@@ -18,11 +16,10 @@ CACHE_DIR = 'cache_parsed_specs'
 CACHE_TTL = 3600  # in second
 
 
-def _build_entity_dict(entities: List[SchemaData], prefix: str | None = None) -> Dict[Tuple[str, str], SchemaData]:
+def _build_entity_dict(entities: List[SchemaData]) -> Dict[Tuple[str, str], SchemaData]:
     entity_dict = {}
     for entity in entities:
-        normalized_path = normalize_path(entity.path, prefix=prefix)
-        entity_key = (entity.http_method.upper(), normalized_path)
+        entity_key = (entity.http_method.upper(), entity.path)
         entity_dict[entity_key] = entity
     return entity_dict
 
@@ -61,7 +58,7 @@ def _save_cache(spec_link: str, raw_schema) -> None:
         dump(raw_schema, f)
 
 
-def load_cache(spec_link: str, prefix: str | None = None) -> Dict[Tuple[str, str], SchemaData]:
+def load_cache(spec_link: str) -> Dict[Tuple[str, str], SchemaData]:
     filename = _get_cache_filename(spec_link)
 
     if _validate_cache_file(filename):
@@ -74,6 +71,6 @@ def load_cache(spec_link: str, prefix: str | None = None) -> Dict[Tuple[str, str
         _save_cache(spec_link, raw_schema)
 
     parsed_data = collect_schema_data(raw_schema)
-    prepared_dict = _build_entity_dict(parsed_data, prefix=prefix)
+    prepared_dict = _build_entity_dict(parsed_data)
 
     return prepared_dict
