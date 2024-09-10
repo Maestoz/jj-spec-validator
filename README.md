@@ -6,6 +6,7 @@ import jj
 from jj.mock import mocked
 from jj_spec_validator import validate_spec
 
+
 @validate_spec(spec_link="http://example.com/api/users/spec.yml")
 async def your_mocked_function():
     matcher = jj.match("GET", "/users")
@@ -14,10 +15,27 @@ async def your_mocked_function():
     mock = await mocked(matcher, response)
 ```
 2. Control discrepancy handling with `validate_level` key: 
-   - `"error"` (default, raises error)
-   - `"warning"` (prints warning, continues execution)
+   - `"warning"` (default, logs a warning, continues execution)
+   - `"error"` (raises exceptions, stops execution)
    - `"skip"` (skips validation)
+
+
+3. Control the output mode of warning messages with the `output_mode` key:
+   - `"std"` (default, prints warnings to stdout)
+   - `"file"` (writes warnings to a file)
+   
+Note: The `output_mode` parameter is only applicable when `validate_level` is set to `"warning"`
+
+4. `is_strict` key will allow choosing between strict and non-strict comparison. False by default.
+
+
+5. Use the `prefix` key to specify a prefix that should be removed from the paths in the mock function before matching them against the OpenAPI spec.
 ```python
-@validate_spec(spec_link="http://example.com/spec.yml", validate_level="warning")
+from jj_spec_validator import validate_spec
+
+
+@validate_spec(spec_link="http://example.com/api/users/spec.yml", prefix='/__mocked_api__')  # Goes to validate `/users` instead of `/__mocked_api__/users`
+async def your_mocked_function():
+    matcher = jj.match("GET", "/__mocked_api__/users")
+    ...
 ```
-3. `is_strict` key (in development) will allow choosing between strict and non-strict comparison. Currently, non-strict comparison is used.
