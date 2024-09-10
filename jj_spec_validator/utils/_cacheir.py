@@ -9,10 +9,12 @@ from httpx import ConnectTimeout, Response, get
 from schemax_openapi import SchemaData, collect_schema_data
 from yaml import FullLoader, load
 
+from .._config import Config
+
 __all__ = ('load_cache', )
 
 
-CACHE_DIR = 'cache_parsed_specs'
+CACHE_DIR = Config.MAIN_DIRECTORY + '/_cache_parsed_specs'
 CACHE_TTL = 3600  # in second
 
 
@@ -46,7 +48,7 @@ def _download_spec(spec_link: str) -> Response:
     try:
         response = get(spec_link)
     except ConnectTimeout:
-        raise ConnectTimeout("Timeout occurred while trying to connect to the specified link.")
+        raise ConnectTimeout(f"Timeout occurred while trying to connect to the {spec_link}.")
     response.raise_for_status()
     return response
 

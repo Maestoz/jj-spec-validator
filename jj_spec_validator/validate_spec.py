@@ -5,17 +5,27 @@ from typing import (Any, Callable, Dict, Literal, Tuple, TypeVar)
 
 from d42 import validate_or_fail
 from jj import RelayResponse
+from pathlib import Path
+
 
 from revolt.errors import SubstitutionError
 from schemax_openapi import SchemaData
 from valera import ValidationException
 
+from ._config import Config
 from .utils import load_cache, create_openapi_matcher
 
 _T = TypeVar('_T')
 
 
 class Validator:
+    path_for_tmp = Path(str(Config.TEMP_DIRECTORY))
+
+    @staticmethod
+    def _gen_tmp_filename(func_name: str) -> Path:
+        file_path = Validator.path_for_tmp / f"_jj-validator_tmp_{func_name}.txt"
+        return file_path
+
     @staticmethod
     def _validation_failure(func_name: str,
                             e: Exception,
@@ -28,8 +38,9 @@ class Validator:
             if output_mode == "std":
                 print(f"⚠️ There are some mismatches in {func_name} :\n{str(e)}\n")
             elif output_mode == "file":
-                with open(f"_jj-validator {func_name}.txt", "a") as f:
-                    f.write(f"\n{str(e)}\n")
+                Validator.path_for_tmp.mkdir(exist_ok=True)
+                with Validator._gen_tmp_filename(func_name).open("a") as f:
+                    f.write(f"{str(e)}\n")
         elif validate_level == "skip":
             pass
 
@@ -110,7 +121,7 @@ class Validator:
 def validate_spec(*,
                   spec_link: str | None,
                   is_strict: bool = False,
-                  validate_level: Literal["error", "warning", "skip"] = "error",
+                  validate_level: Literal["error", "warning", "skip"] = "warning",
                   prefix: str | None = None,
                   output_mode: Literal["std", "file"] = "std",
                   ) -> Callable[[Callable[..., _T]], Callable[..., _T]]:
@@ -120,7 +131,7 @@ def validate_spec(*,
     Args:
        spec_link: The link to the specification. `None` for disable validation.
        is_strict: Defines the comparison policy. Default is 'False'.
-       validate_level: The validation level. Can be 'error', 'warning', or 'skip'. Default is 'error'.
+       validate_level: The validation level. Can be 'error', 'warning', or 'skip'. Default is 'warning'.
        prefix: Prefix is used to cut paths prefix in mock function.
        output_mode: Defines warning messages output. 'std' is default. 'file' for creating file with result per func call.
     """
