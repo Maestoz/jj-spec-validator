@@ -7,8 +7,11 @@ from typing import Dict, List, Tuple
 
 from httpx import ConnectTimeout, Response, get
 from schemax_openapi import SchemaData, collect_schema_data
-from yaml import FullLoader, load
+from yaml import CLoader, load
+import json
 
+
+from utils import TimeitContext
 from .._config import Config
 
 __all__ = ('load_cache', )
@@ -60,16 +63,25 @@ def _save_cache(spec_link: str, raw_schema) -> None:
         dump(raw_schema, f)
 
 
-def load_cache(spec_link: str) -> Dict[Tuple[str, str], SchemaData]:
+def load_cache(spec_link: str, func_name: str | None = None) -> Dict[Tuple[str, str], SchemaData]:
     filename = _get_cache_filename(spec_link)
 
     if _validate_cache_file(filename):
-        with open(filename, 'rb') as f:
-            raw_schema = pickle_load(f)
+        with TimeitContext(f"LOAD parsed YAML of {spec_link} from cache", custom_str=f"{func_name}"):
+            with open(filename, 'rb') as f:
+                raw_schema = pickle_load(f)
     else:
         raw_spec = _download_spec(spec_link)
-        data = raw_spec.text
-        raw_schema = load(data, FullLoader)
+
+        content_type = raw_spec.headers.get('Content-Type', '')
+
+        if 'application/json' in content_type:
+            raw_schema = json.loads(raw_spec.text)
+        elif 'text/yaml' in content_type or 'application/x-yaml' in content_type:
+            raw_schema = load(raw_spec.text, Loader=CLoader)
+        else:
+            raise ValueError(f"Unsupported content type: {content_type}")
+
         _save_cache(spec_link, raw_schema)
 
     parsed_data = collect_schema_data(raw_schema)
