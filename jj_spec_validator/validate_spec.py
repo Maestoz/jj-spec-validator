@@ -7,7 +7,6 @@ from d42 import validate_or_fail, substitute
 from jj import RelayResponse
 from pathlib import Path
 
-
 from revolt.errors import SubstitutionError
 from schemax_openapi import SchemaData
 from valera import ValidationException
@@ -15,14 +14,15 @@ from valera import ValidationException
 from ._config import Config
 from .utils import load_cache, create_openapi_matcher
 
+
 _T = TypeVar('_T')
 
-
 class Validator:
+
     def __init__(self,
+                 is_raise_error: bool,
                  func_name: str,
                  spec_link: str | None = None,
-                 is_raise_error: bool = False,
                  validate_level: Literal["error", "warning"] = "warning",
                  prefix: str | None = None,
                  ):
@@ -34,7 +34,10 @@ class Validator:
 
     def output(self,
                e: Exception):
-        print(f"⚠️ ⚠️ ⚠️ There are some mismatches in {self.func_name} :\n{str(e)}\n")
+        if Config.OUTPUT_FUNCTION is None:
+            print(f"⚠️ ⚠️ ⚠️ There are some mismatches in {self.func_name} :\n{str(e)}\n")
+        else:
+            Config.OUTPUT_FUNCTION(self, e)
 
     def _validation_failure(self,
                             exception: Exception,
@@ -96,52 +99,53 @@ class Validator:
                                  f" lacks a response structure for the validation of {self.func_name}")
 
 
-    @staticmethod
-    def validate_spec(*,
-                      spec_link: str | None,
-                      is_raise_error: bool = False,
-                      prefix: str | None = None,
-                      ) -> Callable[[Callable[..., _T]], Callable[..., _T]]:
-        """
-        Validates the jj mock function with given specification lint.
+def validate_spec(*,
+                  spec_link: str | None,
+                  is_raise_error: bool = None,
+                  prefix: str | None = None
+                  ) -> Callable[[Callable[..., _T]], Callable[..., _T]]:
+    """
+    Validates the jj mock function with given specification lint.
 
-        Args:
-           spec_link: The link to the specification. `None` for disable validation.
-           is_raise_error: If True - raises error when validation is failes. False is default.
-           prefix: Prefix is used to cut paths prefix in mock function.
-        """
-        def decorator(func: Callable[..., _T]) -> Callable[..., _T]:
-            func_name = func.__name__
+    Args:
+       spec_link: The link to the specification. `None` for disable validation.
+       is_raise_error: If True - raises error when validation is failes. False is default.
+       prefix: Prefix is used to cut paths prefix in mock function.
+    """
+    def decorator(func: Callable[..., _T]) -> Callable[..., _T]:
+        func_name = func.__name__
 
-            validator = Validator(spec_link=spec_link,
-                                  is_raise_error=is_raise_error,
-                                  prefix=prefix,
-                                  func_name=func_name)
+        validator = Validator(
+            spec_link=spec_link,
+            prefix=prefix,
+            func_name=func_name,
+            is_raise_error=is_raise_error if is_raise_error is not None else Config.IS_RAISES
+            )
 
-            @wraps(func)
-            async def async_wrapper(*args: object, **kwargs: object) -> _T:
-                mocked = await func(*args, **kwargs)
-                if validator.spec_link:
-                    if isinstance(mocked.handler.response, RelayResponse):
-                        print("RelayResponse type is not supported")
-                        return mocked
-                    validator.validate(mocked)
-                else:...
-                return mocked
+        @wraps(func)
+        async def async_wrapper(*args: object, **kwargs: object) -> _T:
+            mocked = await func(*args, **kwargs)
+            if validator.spec_link:
+                if isinstance(mocked.handler.response, RelayResponse):
+                    print("RelayResponse type is not supported")
+                    return mocked
+                validator.validate(mocked)
+            else:...
+            return mocked
 
-            @wraps(func)
-            def sync_wrapper(*args: object, **kwargs: object) -> _T:
-                mocked = func(*args, **kwargs)
-                if validator.spec_link:
-                    if isinstance(mocked.handler.response, RelayResponse):
-                        print("RelayResponse type is not supported")
-                        return mocked
-                    validator.validate(mocked)
-                else:...
-                return mocked
+        @wraps(func)
+        def sync_wrapper(*args: object, **kwargs: object) -> _T:
+            mocked = func(*args, **kwargs)
+            if validator.spec_link:
+                if isinstance(mocked.handler.response, RelayResponse):
+                    print("RelayResponse type is not supported")
+                    return mocked
+                validator.validate(mocked)
+            else:...
+            return mocked
 
-            if asyncio.iscoroutinefunction(func):
-                return async_wrapper
-            else:
-                return sync_wrapper
-        return decorator
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        else:
+            return sync_wrapper
+    return decorator

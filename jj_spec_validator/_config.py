@@ -1,3 +1,10 @@
 class Config:
+    # service
     MAIN_DIRECTORY = "spec_validator"
-    TEMP_DIRECTORY = MAIN_DIRECTORY + "/_tmp"
+
+    # interface
+    OUTPUT_FUNCTION = None  # ссылка на функцию, переопределяющую вывод
+
+    # params
+    IS_RAISES = False
+
