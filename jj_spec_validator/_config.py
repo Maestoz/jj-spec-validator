@@ -3,7 +3,7 @@ class Config:
     MAIN_DIRECTORY = "spec_validator"
 
     # interface
-    OUTPUT_FUNCTION = None  # ссылка на функцию, переопределяющую вывод
+    OUTPUT_FUNCTION = None  # can be used for custom output func
 
     # params
     IS_RAISES = False

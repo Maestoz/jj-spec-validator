@@ -1,3 +1,4 @@
+import json
 from hashlib import md5
 from os import makedirs, path, remove
 from pickle import dump
@@ -8,10 +9,7 @@ from typing import Dict, List, Tuple
 from httpx import ConnectTimeout, Response, get
 from schemax_openapi import SchemaData, collect_schema_data
 from yaml import CLoader, load
-import json
 
-
-from utils import TimeitContext
 from .._config import Config
 
 __all__ = ('load_cache', )

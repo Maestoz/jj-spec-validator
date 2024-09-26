@@ -1,19 +1,16 @@
 import asyncio
 from functools import wraps
 from json import JSONDecodeError, loads
-from typing import (Any, Callable, Dict, Literal, Tuple, TypeVar)
+from typing import Callable, Dict, Literal, Tuple, TypeVar
 
-from d42 import validate_or_fail, substitute
+from d42 import substitute
 from jj import RelayResponse
-from pathlib import Path
-
 from revolt.errors import SubstitutionError
 from schemax_openapi import SchemaData
 from valera import ValidationException
 
 from ._config import Config
-from .utils import load_cache, create_openapi_matcher
-
+from .utils import create_openapi_matcher, load_cache
 
 _T = TypeVar('_T')
 

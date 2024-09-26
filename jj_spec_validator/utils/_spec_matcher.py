@@ -1,7 +1,6 @@
 from typing import Any, Dict, Union
 
 from aiohttp.web_urldispatcher import DynamicResource
-
 from jj.matchers import AllMatcher as JJAllMatcher
 from jj.matchers import AnyMatcher as JJAnyMatcher
 from jj.matchers import EqualMatcher as JJEqualMatcher
