@@ -65,9 +65,8 @@ def load_cache(spec_link: str, func_name: str | None = None) -> Dict[Tuple[str, 
     filename = _get_cache_filename(spec_link)
 
     if _validate_cache_file(filename):
-        with TimeitContext(f"LOAD parsed YAML of {spec_link} from cache", custom_str=f"{func_name}"):
-            with open(filename, 'rb') as f:
-                raw_schema = pickle_load(f)
+        with open(filename, 'rb') as f:
+            raw_schema = pickle_load(f)
     else:
         raw_spec = _download_spec(spec_link)
 
