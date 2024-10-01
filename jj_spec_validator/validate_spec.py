@@ -4,13 +4,14 @@ from json import JSONDecodeError, loads
 from typing import Callable, Dict, Literal, Tuple, TypeVar
 
 from d42 import substitute
+
 from jj import RelayResponse
 from revolt.errors import SubstitutionError
 from schemax_openapi import SchemaData
 from valera import ValidationException
 
 from ._config import Config
-from .utils import create_openapi_matcher, load_cache
+from .utils import create_openapi_matcher, load_cache, get_forced_strict_spec
 
 _T = TypeVar('_T')
 
@@ -20,13 +21,13 @@ class Validator:
                  is_raise_error: bool,
                  func_name: str,
                  spec_link: str | None = None,
-                 validate_level: Literal["error", "warning"] = "warning",
+                 force_strict: bool = False,
                  prefix: str | None = None,
                  ):
+        self.is_raise_error = is_raise_error
         self.func_name = func_name
         self.spec_link = spec_link
-        self.is_raise_error = is_raise_error
-        self.validate_level = validate_level
+        self.force_strict = force_strict
         self.prefix = prefix
 
     def output(self,
@@ -77,7 +78,6 @@ class Validator:
 
         return spec_unit, decoded_mocked_body
 
-
     def validate(self,
                  mocked: _T,
                  ) -> None:
@@ -85,9 +85,13 @@ class Validator:
         spec_unit, decoded_mocked_body = self._prepare_validation(mocked=mocked)
 
         if spec_unit.response_schema_d42:
+            if self.force_strict:
+                response_in_spec = get_forced_strict_spec(spec_unit.response_schema_d42)
+            else:
+                response_in_spec = spec_unit.response_schema_d42
 
             try:
-                substitute(spec_unit.response_schema_d42, decoded_mocked_body)
+                substitute(response_in_spec, decoded_mocked_body)
             except SubstitutionError as exception:
                 self._validation_failure(exception)
 
@@ -95,11 +99,11 @@ class Validator:
             raise AssertionError(f"API method '{spec_unit}' in the spec_link"
                                  f" lacks a response structure for the validation of {self.func_name}")
 
-
 def validate_spec(*,
                   spec_link: str | None,
                   is_raise_error: bool = None,
-                  prefix: str | None = None
+                  prefix: str | None = None,
+                  force_strict: bool = False,
                   ) -> Callable[[Callable[..., _T]], Callable[..., _T]]:
     """
     Validates the jj mock function with given specification lint.
@@ -108,6 +112,7 @@ def validate_spec(*,
        spec_link: The link to the specification. `None` for disable validation.
        is_raise_error: If True - raises error when validation is failes. False is default.
        prefix: Prefix is used to cut paths prefix in mock function.
+       force_strict: If True - forced remove all Ellipsis from the spec.
     """
     def decorator(func: Callable[..., _T]) -> Callable[..., _T]:
         func_name = func.__name__
@@ -116,6 +121,7 @@ def validate_spec(*,
             spec_link=spec_link,
             prefix=prefix,
             func_name=func_name,
+            force_strict=force_strict,
             is_raise_error=is_raise_error if is_raise_error is not None else Config.IS_RAISES
             )
 
