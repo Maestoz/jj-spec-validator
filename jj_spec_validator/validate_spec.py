@@ -1,17 +1,15 @@
 import asyncio
 from functools import wraps
 from json import JSONDecodeError, loads
-from typing import Callable, Dict, Literal, Tuple, TypeVar
-
-from d42 import substitute
+from typing import Any, Callable, Dict, Tuple, TypeVar
 
 from jj import RelayResponse
-from revolt.errors import SubstitutionError
 from schemax_openapi import SchemaData
-from valera import ValidationException
+from valera import ValidationException, validate_or_fail
 
 from ._config import Config
-from .utils import create_openapi_matcher, load_cache, get_forced_strict_spec
+from .utils import (create_openapi_matcher, get_forced_strict_spec, load_cache,
+                    validate_non_strict)
 
 _T = TypeVar('_T')
 
@@ -19,19 +17,22 @@ class Validator:
 
     def __init__(self,
                  is_raise_error: bool,
+                 is_strict: bool,
                  func_name: str,
                  spec_link: str | None = None,
                  force_strict: bool = False,
                  prefix: str | None = None,
                  ):
         self.is_raise_error = is_raise_error
+        self.is_strict = is_strict
         self.func_name = func_name
         self.spec_link = spec_link
         self.force_strict = force_strict
         self.prefix = prefix
 
     def output(self,
-               e: Exception):
+               e: Exception
+               ) -> None:
         if Config.OUTPUT_FUNCTION is None:
             print(f"⚠️ ⚠️ ⚠️ There are some mismatches in {self.func_name} :\n{str(e)}\n")
         else:
@@ -44,17 +45,19 @@ class Validator:
         if self.is_raise_error:
             raise ValidationException(f"There are some mismatches in {self.func_name}:\n{str(exception)}")
 
-    def prepare_data(self) -> Dict[Tuple[str, str], SchemaData]:
-        return load_cache(self.spec_link, self.func_name)
+    def prepare_data(self) -> dict[tuple[str, str], SchemaData]:
+        if self.spec_link is None:
+            raise ValueError("Spec link cannot be None")
+        return load_cache(self.spec_link)
 
     def _prepare_validation(self,
-                           mocked: _T,
-                           ):
+                           mocked,
+                           ) -> tuple[SchemaData | None, Any]:
         mock_matcher = mocked.handler.matcher
 
         try:
             # check for JSON in response of mock
-            decoded_mocked_body = loads(mocked.handler.response.get_body().decode())  # type: ignore
+            decoded_mocked_body = loads(mocked.handler.response.get_body().decode())
         except JSONDecodeError:
             raise AssertionError(f"JSON expected in Response body of the {self.func_name}")
 
@@ -70,7 +73,7 @@ class Validator:
         if len(matched_spec_units) > 1:
             raise AssertionError(f"There is more than 1 matches")
 
-        if len(matched_spec_units) == 0:
+        elif len(matched_spec_units) == 0:
             raise AssertionError(f"API method '{prepared_spec}' was not found in the spec_link "
                                  f"for the validation of {self.func_name}")
 
@@ -83,17 +86,22 @@ class Validator:
                  ) -> None:
 
         spec_unit, decoded_mocked_body = self._prepare_validation(mocked=mocked)
+        if spec_unit is not None:
+            spec_response_schema = spec_unit.response_schema_d42
+            if spec_response_schema:
+                if self.force_strict:
+                    spec_response_schema = get_forced_strict_spec(spec_response_schema)
+                else:
+                    spec_response_schema = spec_response_schema
 
-        if spec_unit.response_schema_d42:
-            if self.force_strict:
-                response_in_spec = get_forced_strict_spec(spec_unit.response_schema_d42)
-            else:
-                response_in_spec = spec_unit.response_schema_d42
+                try:
+                    if self.is_strict:
+                        validate_or_fail(spec_response_schema, decoded_mocked_body)
+                    else:
+                        validate_non_strict(spec_response_schema, decoded_mocked_body)
 
-            try:
-                substitute(response_in_spec, decoded_mocked_body)
-            except SubstitutionError as exception:
-                self._validation_failure(exception)
+                except ValidationException as exception:
+                    self._validation_failure(exception)
 
         else:
             raise AssertionError(f"API method '{spec_unit}' in the spec_link"
@@ -101,7 +109,8 @@ class Validator:
 
 def validate_spec(*,
                   spec_link: str | None,
-                  is_raise_error: bool = None,
+                  is_raise_error: bool | None = None,
+                  is_strict: bool | None = None,
                   prefix: str | None = None,
                   force_strict: bool = False,
                   ) -> Callable[[Callable[..., _T]], Callable[..., _T]]:
@@ -111,6 +120,7 @@ def validate_spec(*,
     Args:
        spec_link: The link to the specification. `None` for disable validation.
        is_raise_error: If True - raises error when validation is failes. False is default.
+       is_strict: If True - validate exact structure in given mocked.
        prefix: Prefix is used to cut paths prefix in mock function.
        force_strict: If True - forced remove all Ellipsis from the spec.
     """
@@ -122,7 +132,8 @@ def validate_spec(*,
             prefix=prefix,
             func_name=func_name,
             force_strict=force_strict,
-            is_raise_error=is_raise_error if is_raise_error is not None else Config.IS_RAISES
+            is_raise_error=is_raise_error if is_raise_error is not None else Config.IS_RAISES,
+            is_strict=is_strict if is_strict is not None else Config.IS_STRICT
             )
 
         @wraps(func)

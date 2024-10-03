@@ -4,7 +4,7 @@ from os import makedirs, path, remove
 from pickle import dump
 from pickle import load as pickle_load
 from time import time
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from httpx import ConnectTimeout, Response, get
 from schemax_openapi import SchemaData, collect_schema_data
@@ -54,14 +54,14 @@ def _download_spec(spec_link: str) -> Response:
     return response
 
 
-def _save_cache(spec_link: str, raw_schema) -> None:
+def _save_cache(spec_link: str, raw_schema: dict[str, Any]) -> None:
     filename = _get_cache_filename(spec_link)
     makedirs(CACHE_DIR, exist_ok=True)
     with open(filename, 'wb') as f:
         dump(raw_schema, f)
 
 
-def load_cache(spec_link: str, func_name: str | None = None) -> Dict[Tuple[str, str], SchemaData]:
+def load_cache(spec_link: str) -> Dict[Tuple[str, str], SchemaData]:
     filename = _get_cache_filename(spec_link)
 
     if _validate_cache_file(filename):

@@ -72,11 +72,15 @@ class AllMatcher(BaseMatcher):
 
 
 def create_openapi_matcher(matcher: ResolvableMatcher, prefix: str | None = None) -> BaseMatcher | None:
+    spec_matcher: BaseMatcher
+
     if isinstance(matcher, JJMethodMatcher):
         submatcher = matcher.sub_matcher
         if isinstance(submatcher, JJEqualMatcher):
             spec_matcher = MethodMatcher(mocked_method=submatcher.expected)
             return spec_matcher
+        else:
+            return None
 
     elif isinstance(matcher, JJPathMatcher):
         submatcher = matcher.sub_matcher
@@ -86,11 +90,13 @@ def create_openapi_matcher(matcher: ResolvableMatcher, prefix: str | None = None
                 mocked_path = destroy_prefix(submatcher.path, prefix)
             spec_matcher = RouteMatcher(mocked_path=mocked_path)
             return spec_matcher
+        else:
+            return None
 
     elif isinstance(matcher, JJAllMatcher):
         submatchers = matcher.sub_matchers
         matchers = [create_openapi_matcher(submatcher, prefix=prefix) for submatcher in submatchers if create_openapi_matcher(submatcher, prefix=prefix) is not None]
-        spec_matcher = AllMatcher(matchers= matchers)
+        spec_matcher = AllMatcher(matchers=matchers)
         return spec_matcher
 
     elif isinstance(matcher, JJAnyMatcher):

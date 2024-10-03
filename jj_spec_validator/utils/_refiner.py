@@ -1,45 +1,35 @@
-from district42.types import (
-    DictSchema,
-    ListSchema,
-    AnySchema,
-)
 from district42 import GenericSchema
+from district42.types import AnySchema, DictSchema, ListSchema
 from district42.utils import is_ellipsis
 from niltype import Nil
-import copy
 
 __all__ = ('get_forced_strict_spec', )
 
 
-def get_forced_strict_spec(spec_unit_schema: GenericSchema) -> GenericSchema:
-
-    if not isinstance(spec_unit_schema, DictSchema):
-        raise ValueError("Expected DictSchema")
-
-    refined_object = copy.deepcopy(spec_unit_schema)
-
-    _remove_ellipsis(refined_object)
-
-    return refined_object
-
-def _remove_ellipsis(schema: GenericSchema) -> None:
-
-    if isinstance(schema, ListSchema):
-        _remove_ellipsis(schema.props.type)
-
+def get_forced_strict_spec(schema: GenericSchema) -> GenericSchema:
+    if isinstance(schema, DictSchema):
+        if schema.props.keys is not Nil:
+            new_keys = {}
+            for k, (v, is_optional) in schema.props.keys.items():
+                if not is_ellipsis(k):
+                    new_keys[k] = (get_forced_strict_spec(v), is_optional)
+            return schema.__class__(schema.props.update(keys=new_keys))
+        return schema
+    elif isinstance(schema, ListSchema):
+        if schema.props.elements is not Nil:
+            new_elements = [get_forced_strict_spec(element) for element in schema.props.elements]
+            return schema.__class__(schema.props.update(elements=new_elements))
+        elif schema.props.type is not Nil:
+            new_type = get_forced_strict_spec(schema.props.type)
+            return schema.__class__(schema.props.update(type=new_type))
+        return schema
     elif isinstance(schema, AnySchema):
         if schema.props.types is not Nil:
-            for elem in schema.props.types:
-                _remove_ellipsis(elem)
-
-    elif isinstance(schema, DictSchema):
-        if schema.props.keys is not Nil:
-            for key, (val, is_optional) in list(schema.props.keys.items()):
-                if is_ellipsis(key):
-                    del schema.props.keys[key]
-                else:
-                    _remove_ellipsis(val)
-
+            new_types = tuple(get_forced_strict_spec(t) for t in schema.props.types)
+            return schema.__class__(schema.props.update(types=new_types))
+        return schema
+    else:
+        return schema
 
 
 
