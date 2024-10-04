@@ -36,7 +36,7 @@ class Validator:
         if Config.OUTPUT_FUNCTION is None:
             print(f"⚠️ ⚠️ ⚠️ There are some mismatches in {self.func_name} :\n{str(e)}\n")
         else:
-            Config.OUTPUT_FUNCTION(self, e)
+            Config.OUTPUT_FUNCTION(self.func_name, e)
 
     def _validation_failure(self,
                             exception: Exception,
