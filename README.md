@@ -15,8 +15,7 @@ async def your_mocked_function():
     mock = await mocked(matcher, response)
 ```
 
-2. `is_strict` key will allow choosing between strict and non-strict comparison. False by default.
-
+2. `is_strict` key allows choosing between strict and non-strict comparison. Non-strict comparison allows you to mock only some fields from the spec. `False` (= non-strict) by default.
 
 3. Use the `prefix` key to specify a prefix that should be removed from the paths in the mock function before matching them against the OpenAPI spec.
 ```python
@@ -28,3 +27,7 @@ async def your_mocked_function():
     matcher = jj.match("GET", "/__mocked_api__/users")
     ...
 ```
+
+4. `is_raise_error` key allows raising an error when a mismatch occurs. `False` by default.
+
+5. `force_strict` key allows enforcing strict validation against the downloaded spec. This is useful when the spec is occasionally have all dicts relaxed. `False` by default.
