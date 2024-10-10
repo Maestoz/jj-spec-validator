@@ -6,14 +6,14 @@ from pickle import load as pickle_load
 from time import time
 from typing import Any, Dict, List, Tuple
 
-from httpx import ConnectTimeout, Response, get
+import httpx
 from schemax_openapi import SchemaData, collect_schema_data
 from yaml import CLoader, load
 
 from .._config import Config
+from ..validator_base import BaseValidator
 
 __all__ = ('load_cache', )
-
 
 CACHE_DIR = Config.MAIN_DIRECTORY + '/_cache_parsed_specs'
 CACHE_TTL = 3600  # in second
@@ -45,13 +45,38 @@ def _get_cache_filename(url: str) -> str:
     return path.join(CACHE_DIR, hash_obj.hexdigest() + '.cache' + '.yml')
 
 
-def _download_spec(spec_link: str) -> Response:
-    try:
-        response = get(spec_link)
-    except ConnectTimeout:
-        raise ConnectTimeout(f"Timeout occurred while trying to connect to the {spec_link}.")
-    response.raise_for_status()
-    return response
+def _download_spec(validator: BaseValidator) -> httpx.Response | None:
+    if validator.skip_if_failed_to_get_spec:
+        try:
+            response = httpx.get(validator.spec_link)
+        except httpx.ConnectTimeout as e:
+            validator.output(e, f"Timeout occurred while trying to connect to the {validator.spec_link}.")
+            return None
+        except httpx.ReadTimeout as e:
+            validator.output(e, f"Timeout occurred while trying to read the spec from the {validator.spec_link}.")
+            return None
+        except httpx.HTTPError as e:
+            validator.output(e, f"An error occurred while trying to download the spec: {e}")
+            return None
+        except Exception as e:
+            validator.output(e, f"An error occurred while trying to download the spec: {e}")
+            return None
+        response.raise_for_status()
+        return response
+    else:
+        try:
+            response = httpx.get(validator.spec_link)
+        except httpx.ConnectTimeout:
+            raise httpx.ConnectTimeout(f"Timeout occurred while trying to connect to the {validator.spec_link}.")
+        except httpx.ReadTimeout:
+            raise httpx.ReadTimeout(f"Timeout occurred while trying to read the spec from the {validator.spec_link}.")
+        except httpx.HTTPError as e:
+            raise httpx.HTTPError(f"An error occurred while trying to download the spec: {e}")
+        except Exception as e:
+            raise ValueError(f"An error occurred while trying to download the spec: {e}")
+        response.raise_for_status()
+        return response
+
 
 
 def _save_cache(spec_link: str, raw_schema: dict[str, Any]) -> None:
@@ -61,14 +86,16 @@ def _save_cache(spec_link: str, raw_schema: dict[str, Any]) -> None:
         dump(raw_schema, f)
 
 
-def load_cache(spec_link: str) -> Dict[Tuple[str, str], SchemaData]:
-    filename = _get_cache_filename(spec_link)
+def load_cache(validator: BaseValidator) -> Dict[Tuple[str, str], SchemaData] | None:
+    filename = _get_cache_filename(validator.spec_link)
 
     if _validate_cache_file(filename):
         with open(filename, 'rb') as f:
             raw_schema = pickle_load(f)
     else:
-        raw_spec = _download_spec(spec_link)
+        raw_spec = _download_spec(validator)
+        if raw_spec is None:
+            return None
 
         content_type = raw_spec.headers.get('Content-Type', '')
 
@@ -79,7 +106,7 @@ def load_cache(spec_link: str) -> Dict[Tuple[str, str], SchemaData]:
         else:
             raise ValueError(f"Unsupported content type: {content_type}")
 
-        _save_cache(spec_link, raw_schema)
+        _save_cache(validator.spec_link, raw_schema)
 
     parsed_data = collect_schema_data(raw_schema)
     prepared_dict = _build_entity_dict(parsed_data)
