@@ -104,7 +104,13 @@ def load_cache(validator: BaseValidator) -> Dict[Tuple[str, str], SchemaData] | 
         elif 'text/yaml' in content_type or 'application/x-yaml' in content_type:
             raw_schema = load(raw_spec.text, Loader=CLoader)
         else:
-            raise ValueError(f"Unsupported content type: {content_type}")
+            # trying to match via file extension
+            if validator.spec_link.endswith('.json'):
+                raw_schema = json.loads(raw_spec.text)
+            elif validator.spec_link.endswith('.yaml') or validator.spec_link.endswith('.yml'):
+                raw_schema = load(raw_spec.text, Loader=CLoader)
+            else:
+                raise ValueError(f"Unsupported content type: {content_type}")
 
         _save_cache(validator.spec_link, raw_schema)
 
