@@ -104,7 +104,8 @@ class Validator(BaseValidator):
                               spec_matcher.match((http_method, path))]
 
         if len(matched_spec_units) > 1:
-            raise AssertionError(f"There is more than 1 matches")
+            raise AssertionError(f"There is more than 1 matches for mocked API method '{spec_matcher}\n"
+                                 f"in the {self.spec_link}.")
 
         elif len(matched_spec_units) == 0:
             raise AssertionError(f"Mocked API method: '{spec_matcher}'\nwas not found in the {self.spec_link} "
