@@ -82,7 +82,6 @@ class Validator(BaseValidator):
                            mocked,
                            ) -> tuple[SchemaData | None, Any] | tuple[None, None]:
         mock_matcher = mocked.handler.matcher
-
         try:
             # check for JSON in response of mock
             decoded_mocked_body = loads(mocked.handler.response.get_body().decode())
@@ -98,15 +97,19 @@ class Validator(BaseValidator):
         if prepared_spec is None:
             return None, None
 
-        matched_spec_units = [(http_method, path) for http_method, path in prepared_spec.keys() if
+        all_spec_units = prepared_spec.keys()
+        formatted_units = "\n".join([str(key) for key in all_spec_units])
+
+        matched_spec_units = [(http_method, path) for http_method, path in all_spec_units if
                               spec_matcher.match((http_method, path))]
 
         if len(matched_spec_units) > 1:
             raise AssertionError(f"There is more than 1 matches")
 
         elif len(matched_spec_units) == 0:
-            raise AssertionError(f"API method '{prepared_spec}' was not found in the spec_link "
-                                 f"for the validation of {self.func_name}")
+            raise AssertionError(f"Mocked API method: '{spec_matcher}'\nwas not found in the {self.spec_link} "
+                                 f"for the validation of {self.func_name}.\n"
+                                 f"Presented units:\n{formatted_units}.")
 
         spec_unit = prepared_spec.get(matched_spec_units[0])
 

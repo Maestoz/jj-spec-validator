@@ -26,6 +26,14 @@ class MethodMatcher(BaseMatcher):
     def match(self, spec_unit: tuple[str, str]) -> bool:
         return bool(self._mocked_method == spec_unit[0])
 
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the MethodMatcher instance.
+
+        :return: A string describing the class and matcher.
+        """
+        return f"{self.__class__.__qualname__}({self._mocked_method!r})"
+
 
 class _Resource(DynamicResource):
     def match(self, path: str) -> Union[Dict[str, str], None]:
@@ -46,6 +54,14 @@ class RouteMatcher(BaseMatcher):
             self._resource_spec = _Resource(spec)
             return self._resource_spec.match(mock) is not None
 
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the RouteMatcher instance.
+
+        :return: A string describing the class and matcher.
+        """
+        return f"{self.__class__.__qualname__}({self._mocked_path!r})"
+
 
 class AnyMatcher(BaseMatcher):
     def __init__(self, matchers: list[BaseMatcher]) -> None:
@@ -58,6 +74,15 @@ class AnyMatcher(BaseMatcher):
                 return True
         return False
 
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the AnyMatcher instance.
+
+        :return: A string describing the class and matchers.
+        """
+        return (f"{self.__class__.__qualname__}"
+                f"({self._matchers!r}")
+
 
 class AllMatcher(BaseMatcher):
     def __init__(self, matchers: list[BaseMatcher]) -> None:
@@ -69,6 +94,15 @@ class AllMatcher(BaseMatcher):
             if not matcher.match(spec_unit):
                 return False
         return True
+
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the AllMatcher instance.
+
+        :return: A string describing the class and matchers.
+        """
+        return (f"{self.__class__.__qualname__}"
+                f"({self._matchers!r})")
 
 
 def create_openapi_matcher(matcher: ResolvableMatcher, prefix: str | None = None) -> BaseMatcher | None:
