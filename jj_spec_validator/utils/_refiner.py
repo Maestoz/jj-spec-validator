@@ -30,7 +30,3 @@ def get_forced_strict_spec(schema: GenericSchema) -> GenericSchema:
         return schema
     else:
         return schema
-
-
-
-
