@@ -48,7 +48,7 @@ def _get_cache_filename(url: str) -> str:
 def _download_spec(validator: BaseValidator) -> httpx.Response | None:
     if validator.skip_if_failed_to_get_spec:
         try:
-            response = httpx.get(validator.spec_link)
+            response = httpx.get(validator.spec_link, timeout=Config.GET_SPEC_TIMEOUT)
         except httpx.ConnectTimeout as e:
             validator.output(e, f"Timeout occurred while trying to connect to the {validator.spec_link}.")
             return None
@@ -65,7 +65,7 @@ def _download_spec(validator: BaseValidator) -> httpx.Response | None:
         return response
     else:
         try:
-            response = httpx.get(validator.spec_link)
+            response = httpx.get(validator.spec_link, timeout=Config.GET_SPEC_TIMEOUT)
         except httpx.ConnectTimeout:
             raise httpx.ConnectTimeout(f"Timeout occurred while trying to connect to the {validator.spec_link}.")
         except httpx.ReadTimeout:
