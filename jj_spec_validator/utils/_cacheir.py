@@ -1,10 +1,10 @@
 import json
 from hashlib import md5
 from os import makedirs, path, remove
+from pickle import dump
+from pickle import load as pickle_load
 from time import time
 from typing import Any, Dict, List, Tuple
-from shelved_cache import PersistentCache
-from cachetools import LRUCache
 
 import httpx
 from schemax_openapi import SchemaData, collect_schema_data
@@ -42,7 +42,7 @@ def _validate_cache_file(filename: str) -> bool:
 
 def _get_cache_filename(url: str) -> str:
     hash_obj = md5(url.encode())
-    return path.join(CACHE_DIR, hash_obj.hexdigest())
+    return path.join(CACHE_DIR, hash_obj.hexdigest() + '.cache' + '.yml')
 
 
 def _download_spec(validator: BaseValidator) -> httpx.Response | None:
@@ -81,17 +81,16 @@ def _download_spec(validator: BaseValidator) -> httpx.Response | None:
 def _save_cache(spec_link: str, raw_schema: dict[str, Any]) -> None:
     filename = _get_cache_filename(spec_link)
     makedirs(CACHE_DIR, exist_ok=True)
-    cache = PersistentCache(LRUCache, filename=filename, maxsize=100)
-    cache[filename] = raw_schema
-    cache.close()
+    with open(filename, 'wb') as f:
+        dump(raw_schema, f)
 
 
 def load_cache(validator: BaseValidator) -> Dict[Tuple[str, str], SchemaData] | None:
     filename = _get_cache_filename(validator.spec_link)
 
-    cache = PersistentCache(LRUCache, filename=filename, maxsize=100)
-    if _validate_cache_file(filename + '.db'):
-        raw_schema = cache[filename]
+    if _validate_cache_file(filename):
+        with open(filename, 'rb') as f:
+            raw_schema = pickle_load(f)
     else:
         raw_spec = _download_spec(validator)
         if raw_spec is None:
