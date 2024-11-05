@@ -46,35 +46,51 @@ def _get_cache_filename(url: str) -> str:
 
 
 def _download_spec(validator: BaseValidator) -> httpx.Response | None:
+    response = None
     if validator.skip_if_failed_to_get_spec:
         try:
             response = httpx.get(validator.spec_link, timeout=Config.GET_SPEC_TIMEOUT)
+            response.raise_for_status()
         except httpx.ConnectTimeout as e:
             validator.output(e, f"Timeout occurred while trying to connect to the {validator.spec_link}.")
             return None
         except httpx.ReadTimeout as e:
             validator.output(e, f"Timeout occurred while trying to read the spec from the {validator.spec_link}.")
             return None
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if 400 <= status_code < 500:
+                validator.output(e, f"Client error occurred: {status_code} {e.response.reason_phrase}")
+                return None
+            elif 500 <= status_code < 600:
+                validator.output(e, f"Server error occurred: {status_code} {e.response.reason_phrase}")
+                return None
         except httpx.HTTPError as e:
             validator.output(e, f"An error occurred while trying to download the spec: {e}")
             return None
         except Exception as e:
             validator.output(e, f"An error occurred while trying to download the spec: {e}")
             return None
-        response.raise_for_status()
         return response
     else:
         try:
             response = httpx.get(validator.spec_link, timeout=Config.GET_SPEC_TIMEOUT)
+            response.raise_for_status()
         except httpx.ConnectTimeout:
             raise httpx.ConnectTimeout(f"Timeout occurred while trying to connect to the {validator.spec_link}.")
         except httpx.ReadTimeout:
             raise httpx.ReadTimeout(f"Timeout occurred while trying to read the spec from the {validator.spec_link}.")
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if 400 <= status_code < 500:
+                raise ValueError(f"Client error occurred: {status_code} {e.response.reason_phrase}")
+            elif 500 <= status_code < 600:
+                raise RuntimeError(f"Server error occurred: {status_code} {e.response.reason_phrase}")
         except httpx.HTTPError as e:
             raise httpx.HTTPError(f"An error occurred while trying to download the spec: {e}")
         except Exception as e:
             raise ValueError(f"An error occurred while trying to download the spec: {e}")
-        response.raise_for_status()
+
         return response
 
 
