@@ -2,7 +2,7 @@ from json import JSONDecodeError, loads
 from typing import Any, TypeVar
 
 from schemax_openapi import SchemaData
-from valera import ValidationException, validate_or_fail
+from d42.validation import ValidationException, validate_or_fail
 
 from ._config import Config
 from .utils import (create_openapi_matcher, get_forced_strict_spec, load_cache,

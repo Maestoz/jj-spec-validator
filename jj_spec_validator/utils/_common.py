@@ -1,9 +1,9 @@
 import re
 from typing import Any, Match
 
-from district42 import GenericSchema
-from revolt import SubstitutorValidator
-from valera import ValidationException, format_result
+from d42.validation import format_result, ValidationException
+from d42.substitution import SubstitutorValidator
+from d42.declaration import GenericSchema
 
 __all__ = ('normalize_path', 'destroy_prefix', 'validate_non_strict', )
 

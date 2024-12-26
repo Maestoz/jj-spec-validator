@@ -1,3 +1,8 @@
+### Version Compatibility Notice
+
+- For versions of this package **below 1.0.0**, only version 1 of the [`d42`](https://github.com/d42-schemas/d42) package is compatible.
+- For versions of this package **1.0.0 and later**, only version 2 of the [`d42`](https://github.com/d42-schemas/d42) package is compatible.
+
 ## Usage
 
 1. Decorate your [mocked](https://pypi.org/project/jj/) function with `@validate_spec()`, providing a link to a YAML or JSON OpenAPI spec.
